@@ -49,14 +49,22 @@ except Exception as e:
     model = None
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    image = image.resize((128, 128))  # Resize image to match model input shape
-    img_array = np.array(image) / 255.0  # Normalize pixel values
-    img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    image = Image.open(uploaded_file)
+    # Display the uploaded image
+    original_image = Image.open(uploaded_file).convert("RGB")
+    st.image(original_image, caption="Uploaded image", width="content")
 
-    try:
-        preds = model.predict(img_batch)
-        st.write("Predictions:", preds)
-    except Exception as e:
-        st.warning(f"Model could not be loaded or prediction failed: {e}")
+    # Prepare image for the model
+    image_resized = original_image.resize((128, 128))
+    img_array = np.array(image_resized) / 255.0
+    img_batch = np.expand_dims(img_array, axis=0)
+
+    if model is None:
+        st.warning("Model is not loaded, cannot make predictions.")
+    else:
+        try:
+            preds = model.predict(img_batch)
+            pred_class = int(np.argmax(preds, axis=1)[0])
+            st.write("Predicted class:", pred_class)
+            st.write("Probabilities:", preds[0].tolist())
+        except Exception as e:
+            st.warning(f"Prediction failed: {e}")
