@@ -165,6 +165,9 @@ if page == "🏠 Página Principal":
                     st.json(feedback_obj)
                     st.session_state.show_dialog = False
                     
+            if "show_dialog" not in st.session_state:
+                st.session_state.show_dialog = False
+
             if st.button("Abrir Formulário de Feedback"):
                 st.session_state.show_dialog = True
 
