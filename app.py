@@ -3,6 +3,39 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 
+# Define a arquitetura do modelo
+def my_lenet(do_freq=0.3):
+    inputs = tf.keras.layers.Input(shape=(128,128,3))
+
+    c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(inputs)
+    c1 = tf.keras.layers.BatchNormalization()(c1)
+    c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(c1)
+    s2 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c1)
+    s2 = tf.keras.layers.Dropout(do_freq)(s2)
+
+    c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(s2)
+    c3 = tf.keras.layers.BatchNormalization()(c3)
+    c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(c3)
+    s4 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c3)
+    s4 = tf.keras.layers.Dropout(do_freq)(s4)
+
+    c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(s4)
+    c5 = tf.keras.layers.BatchNormalization()(c5)
+    c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(c5)
+    s6 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c5)
+    s6 = tf.keras.layers.Dropout(do_freq)(s6)
+
+    flat = tf.keras.layers.Flatten()(s6)
+    f7 = tf.keras.layers.Dense(256, activation='relu')(flat)
+    f7 = tf.keras.layers.BatchNormalization()(f7)
+    f7 = tf.keras.layers.Dropout(do_freq)(f7)
+    f8 = tf.keras.layers.Dense(128, activation='relu')(f7)
+    f8 = tf.keras.layers.BatchNormalization()(f8)
+    f8 = tf.keras.layers.Dropout(do_freq)(f8)
+    outputs = tf.keras.layers.Dense(2, activation='softmax')(f8)
+
+    return tf.keras.models.Model(inputs, outputs, name='my_lenet')
+
 st.set_page_config(page_title="Previsão de Tendência de Ações", page_icon=":chart_with_upwards_trend:", layout="centered")
 
 st.title("📈 Previsão de Tendência de Ações a partir de Imagens de Gráficos")
@@ -28,44 +61,10 @@ if page == "🏠 Página Principal":
     """, unsafe_allow_html=True)
 
     st.markdown("### Passo 1: Faça o Upload de um Gráfico Candlestick")
-    st.caption("Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
     uploaded_file = st.file_uploader(
-        "",
+        "Formatos suportados: JPG, PNG e JPEG.",
         type=["jpg", "png", "jpeg"]
     )
-
-    # Define a arquitetura do modelo
-    def my_lenet(do_freq=0.3):
-        inputs = tf.keras.layers.Input(shape=(128,128,3))
-
-        c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(inputs)
-        c1 = tf.keras.layers.BatchNormalization()(c1)
-        c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(c1)
-        s2 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c1)
-        s2 = tf.keras.layers.Dropout(do_freq)(s2)
-
-        c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(s2)
-        c3 = tf.keras.layers.BatchNormalization()(c3)
-        c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(c3)
-        s4 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c3)
-        s4 = tf.keras.layers.Dropout(do_freq)(s4)
-
-        c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(s4)
-        c5 = tf.keras.layers.BatchNormalization()(c5)
-        c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(c5)
-        s6 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c5)
-        s6 = tf.keras.layers.Dropout(do_freq)(s6)
-
-        flat = tf.keras.layers.Flatten()(s6)
-        f7 = tf.keras.layers.Dense(256, activation='relu')(flat)
-        f7 = tf.keras.layers.BatchNormalization()(f7)
-        f7 = tf.keras.layers.Dropout(do_freq)(f7)
-        f8 = tf.keras.layers.Dense(128, activation='relu')(f7)
-        f8 = tf.keras.layers.BatchNormalization()(f8)
-        f8 = tf.keras.layers.Dropout(do_freq)(f8)
-        outputs = tf.keras.layers.Dense(2, activation='softmax')(f8)
-
-        return tf.keras.models.Model(inputs, outputs, name='my_lenet')
 
     # Carrega o modelo uma vez
     @st.cache_resource
