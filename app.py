@@ -21,7 +21,6 @@ if page == "🏠 Página Principal":
     - As previsões são para o período **t+5** (cinco períodos após o último período mostrado no gráfico).
     - O modelo foi treinado exclusivamente para gráficos do tipo **candlestick**, utilizados em **análise gráfica**. Outros tipos de gráficos não são suportados.
 
-    <br>
     **Como funciona:**  
     1. Faça o upload de uma imagem de gráfico candlestick (JPG, PNG ou JPEG).  
     2. A imagem será redimensionada e processada pelo nosso modelo.  
@@ -101,7 +100,7 @@ if page == "🏠 Página Principal":
             try:
                 preds = model.predict(img_batch)
                 pred_class_idx = int(np.argmax(preds, axis=1)[0])
-                pred_class = "📈 Subida" if pred_class_idx == 1 else "📉 Queda"
+                pred_class = "📈 subir" if pred_class_idx == 1 else "📉 cair"
                 st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
                 st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
             except Exception as e:
