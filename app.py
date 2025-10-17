@@ -6,8 +6,8 @@ from PIL import Image
 st.title("Stock Trend Prediction")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 
-@st.cache_resource
 # Define the model architecture
+@st.cache_resource
 def my_lenet(do_freq=0.3):
     inputs = tf.keras.layers.Input(shape=(128,128,3))
 
