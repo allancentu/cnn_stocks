@@ -2,7 +2,7 @@ numpy
 streamlit
 tensorflow
 Pillow
-gspread
+requests
 csv
 json
 os
