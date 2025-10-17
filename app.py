@@ -29,9 +29,8 @@ if page == "🏠 Página Principal":
 
     st.markdown("### Passo 1: Faça o Upload de um Gráfico Candlestick")
     uploaded_file = st.file_uploader(
-        "",
-        type=["jpg", "png", "jpeg"],
-        help="Formatos aceitos: JPG, PNG, JPEG. A imagem deve ser um gráfico candlestick representando tendências de preços de ações."
+        "Formatos aceitos: JPG, PNG, JPEG. A imagem deve ser um gráfico candlestick representando tendências de preços de ações.",
+        type=["jpg", "png", "jpeg"]
     )
 
     # Define a arquitetura do modelo
