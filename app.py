@@ -58,7 +58,7 @@ if uploaded_file is not None:
     try:
         preds = model.predict(img_batch)
         pred_class = int(np.argmax(preds, axis=1)[0])
+        pred_class = "Up" if pred_class == 1 else "Down"
         st.write("Predicted class:", pred_class)
-        st.write("Probabilities:", preds[0].tolist())
     except Exception as e:
         st.warning(f"Model could not be loaded or prediction failed: {e}")
