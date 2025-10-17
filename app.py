@@ -27,8 +27,9 @@ if page == "🏠 Página Principal":
     3. Você verá a previsão e uma prévia da sua imagem.
     """, unsafe_allow_html=True)
 
-    st.markdown("### Passo 1: Faça o Upload de um Gráfico Candlestick de Ações")
+    st.markdown("### Passo 1: Faça o Upload de um Gráfico Candlestick")
     uploaded_file = st.file_uploader(
+        "",
         type=["jpg", "png", "jpeg"],
         help="Formatos aceitos: JPG, PNG, JPEG. A imagem deve ser um gráfico candlestick representando tendências de preços de ações."
     )
