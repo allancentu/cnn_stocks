@@ -102,7 +102,10 @@ if page == "🏠 Página Principal":
                 preds = model.predict(img_batch)
                 pred_class_idx = int(np.argmax(preds, axis=1)[0])
                 pred_class = "📈 subir" if pred_class_idx == 1 else "📉 cair"
-                st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
+                if pred_class_idx == 1:
+                    st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
+                else:
+                    st.warning(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
                 st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
 
                 # Exibe as probabilidades
@@ -121,16 +124,16 @@ if page == "🏠 Página Principal":
             def feedback_dialog():
                 st.markdown("Ajude-nos a melhorar! Preencha as informações abaixo:")
 
-                ticker = st.text_input("Ticker do ativo", placeholder="Ex: PETR4")
+                ticker = st.text_input("Ticker do ativo (*)", placeholder="Ex: PETR4")
                 col1, col2 = st.columns(2)
                 with col1:
-                    data_inicio = st.date_input("Data inicial do gráfico")
-                    hora_inicio = st.time_input("Hora inicial do gráfico")
+                    data_inicio = st.date_input("Data inicial do gráfico (*)")
+                    hora_inicio = st.time_input("Hora inicial do gráfico (*)")
                 with col2:
-                    data_fim = st.date_input("Data final do gráfico")
-                    hora_fim = st.time_input("Hora final do gráfico")
-                url_fonte = st.text_input("Fonte dos dados (URL)", placeholder="Cole aqui o link da fonte")
-                acerto = st.radio("O modelo acertou a previsão?", ["Sim", "Não"])
+                    data_fim = st.date_input("Data final do gráfico (*)")
+                    hora_fim = st.time_input("Hora final do gráfico (*)")
+                url_fonte = st.text_input("Fonte dos dados (URL) (opcional)", placeholder="Cole aqui o link da fonte")
+                acerto = st.radio("O modelo acertou a previsão? (*)", ["Sim", "Não"])
                 email = st.text_input("Seu e-mail (opcional)", placeholder="Para receber novidades do projeto")
 
                 obrigatorios_preenchidos = (
