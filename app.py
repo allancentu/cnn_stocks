@@ -45,11 +45,17 @@ model = my_lenet()
 model.load_weights("best_model.weights.h5")
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    image = image.resize((128, 128))  # Resize image to match model input shape
-    img_array = np.array(image) / 255.0  # Normalize pixel values
+    if uploaded_file is not None:
+    original_image = Image.open(uploaded_file).convert("RGB")
+    resized_image = original_image.resize((128, 128))
+
+    # Show original and resized side by side
+    col1, col2 = st.columns(2)
+    col1.image(original_image, caption="Original image", use_column_width=True)
+    col2.image(resized_image, caption="Resized (128x128)", use_column_width=True)
+
+    img_array = np.array(resized_image) / 255.0  # Normalize pixel values
     img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
-    image = Image.open(uploaded_file)
 
     try:
         preds = model.predict(img_batch)
