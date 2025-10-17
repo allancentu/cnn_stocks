@@ -1,11 +1,6 @@
 import streamlit as st
 import tensorflow as tf
 import numpy as np
-import csv
-import json
-import os
-from datetime import datetime
-from pathlib import Path
 from PIL import Image
 
 st.title("Stock Trend Prediction")
@@ -68,49 +63,3 @@ if uploaded_file is not None:
     except Exception as e:
         st.warning(f"Model could not be loaded or prediction failed: {e}")
         preds = None
-
-    if preds is not None:
-
-        save_dir = Path("saved_images")
-        save_dir.mkdir(parents=True, exist_ok=True)
-
-        # sanitize filename and construct paths
-        original_fname = Path(uploaded_file.name).name if hasattr(uploaded_file, "name") else f"original_{datetime.utcnow().timestamp()}.png"
-        orig_path = save_dir / original_fname
-        resized_path = save_dir / f"resized_{original_fname}"
-
-        try:
-            # Save images locally
-            original_image.save(orig_path)
-            resized_image.save(resized_path)
-        except Exception as e:
-            st.warning(f"Failed to save images: {e}")
-
-        # Voting form for 5 future periods
-        with st.form("vote_form"):
-            vote = st.radio("Period 5 (five periods in the future): Was the prediction correct?", ("Yes", "No"), key="period_5")
-            submitted = st.form_submit_button("Submit vote")
-        votes = {"period_5": vote}
-
-        if submitted:
-            record = {
-                "timestamp": datetime.utcnow().isoformat(),
-                "prediction": pred_class,
-                "original_image_path": str(orig_path),
-                "resized_image_path": str(resized_path),
-                "votes": votes
-            }
-
-            # Always save locally
-            csv_file = save_dir / "votes.csv"
-            write_header = not csv_file.exists()
-
-            try:
-                with open(csv_file, "a", newline="", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    if write_header:
-                        writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
-                    writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
-                st.success("Votes saved locally. Note: local storage may be ephemeral in cloud environments.")
-            except Exception as e:
-                st.error(f"Failed to save votes locally: {e}")
