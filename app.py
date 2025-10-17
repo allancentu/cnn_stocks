@@ -49,21 +49,20 @@ if uploaded_file is not None:
     img_array = np.array(resized_image) / 255.0  # Normalize pixel values
     img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
 
+    try:
+        preds = model.predict(img_batch)
+        pred_class_idx = int(np.argmax(preds, axis=1)[0])
+        pred_class = "up" if pred_class_idx == 1 else "down"
+        st.badge("Image processed successfully", icon=":material/check:", color="green")
+        st.write("Based on our model, this asset price will go ", pred_class)
+    except Exception as e:
+        st.warning(f"Model could not be loaded or prediction failed: {e}")
+        preds = None
+    
     # Show original and resized side by side
     tab1, tab2 = st.tabs(["Original Image", "Resized Image"])
 
     with tab1:
-        st.header("A cat")
         st.image(original_image, caption="Original image", width="content")
     with tab2:
-        st.header("A dog")
         st.image(resized_image, caption="Resized (128x128)", width="content")
-        
-    try:
-        preds = model.predict(img_batch)
-        pred_class_idx = int(np.argmax(preds, axis=1)[0])
-        pred_class = "Up" if pred_class_idx == 1 else "Down"
-        st.write("Predicted class:", pred_class)
-    except Exception as e:
-        st.warning(f"Model could not be loaded or prediction failed: {e}")
-        preds = None
