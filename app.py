@@ -103,6 +103,13 @@ if page == "🏠 Página Principal":
                 pred_class = "📈 subir" if pred_class_idx == 1 else "📉 cair"
                 st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
                 st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
+
+                # Exibe as probabilidades
+                st.markdown("#### Probabilidades da Previsão")
+                st.write({
+                    "Probabilidade de subir (📈)": float(preds[0][1]),
+                    "Probabilidade de cair (📉)": float(preds[0][0])
+                })
             except Exception as e:
                 st.error(f"Não foi possível carregar o modelo ou realizar a previsão: {e}")
     else:
