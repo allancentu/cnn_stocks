@@ -103,15 +103,53 @@ if page == "🏠 Página Principal":
                 pred_class_idx = int(np.argmax(preds, axis=1)[0])
                 pred_class = "📈 subir" if pred_class_idx == 1 else "📉 cair"
                 st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
+                st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
 
                 # Exibe as probabilidades
-                st.markdown("**Probabilidades da Previsão**")
+                st.markdown("#### Probabilidades da Previsão")
                 st.write({
                     "Probabilidade de subir (📈)": float(preds[0][1]),
                     "Probabilidade de cair (📉)": float(preds[0][0])
                 })
             except Exception as e:
                 st.error(f"Não foi possível carregar o modelo ou realizar a previsão: {e}")
+                
+            st.markdown("---")
+            st.markdown("**Envie seu feedback sobre a previsão**")
+            if "show_modal" not in st.session_state:
+                st.session_state.show_modal = False
+
+            if st.button("Enviar Feedback sobre a Previsão"):
+                st.session_state.show_modal = True
+
+            if st.session_state.show_modal:
+                with st.popover("Formulário de Feedback"):
+                    st.markdown("Ajude-nos a melhorar! Preencha as informações abaixo:")
+                    ticker = st.text_input("Ticker do ativo", placeholder="Ex: PETR4")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        data_inicio = st.datetime_input("Data e hora inicial do gráfico")
+                    with col2:
+                        data_fim = st.datetime_input("Data e hora final do gráfico")
+                    url_fonte = st.text_input("Fonte dos dados (URL)", placeholder="Cole aqui o link da fonte")
+                    acerto = st.radio("O modelo acertou a previsão?", ["Sim", "Não"])
+                    email = st.text_input("Seu e-mail (opcional)", placeholder="Para receber novidades do projeto")
+                    enviar = st.button("Enviar Feedback")
+
+                    if enviar:
+                        feedback_obj = {
+                            "ticker": ticker,
+                            "data_inicio": str(data_inicio),
+                            "data_fim": str(data_fim),
+                            "url_fonte": url_fonte,
+                            "acerto": acerto,
+                            "email": email,
+                            "caminho_imagem_original": str(uploaded_file.name),
+                            "caminho_imagem_redimensionada": "imagem_redimensionada.png"
+                        }
+                        st.success("Obrigado pelo seu feedback! Sua resposta foi registrada com sucesso. 😊")
+                        st.json(feedback_obj)
+                        st.session_state.show_modal = False
     else:
         st.info("Por favor, faça o upload de uma imagem de gráfico candlestick para começar.")
 
