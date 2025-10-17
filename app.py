@@ -3,66 +3,136 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 
-st.title("Stock Trend Prediction")
-uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
+st.set_page_config(page_title="Previsão de Tendência de Ações", page_icon=":chart_with_upwards_trend:", layout="centered")
 
-# Define the model architecture
-def my_lenet(do_freq=0.3):
-    inputs = tf.keras.layers.Input(shape=(128,128,3))
+st.title("📈 Previsão de Tendência de Ações a partir de Imagens de Gráficos")
+# Sidebar navigation
+st.sidebar.title("Navegação")
+page = st.sidebar.radio(
+    "Escolha uma página:",
+    ["🏠 Página Principal", "🧠 Sobre o Modelo CNN"]
+)
 
-    c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(inputs)
-    c1 = tf.keras.layers.BatchNormalization()(c1)
-    c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(c1)
-    s2 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c1)
-    s2 = tf.keras.layers.Dropout(do_freq)(s2)
+if page == "🏠 Página Principal":
+    st.markdown("""
+    Bem-vindo! Este aplicativo utiliza um modelo de deep learnning para prever se o preço de uma ação irá **subir** ou **cair** com base em uma imagem de gráfico enviada.
 
-    c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(s2)
-    c3 = tf.keras.layers.BatchNormalization()(c3)
-    c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(c3)
-    s4 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c3)
-    s4 = tf.keras.layers.Dropout(do_freq)(s4)
+    **Importante:**  
+    - As previsões são para o período **t+5** (cinco períodos após o último período mostrado no gráfico).
+    - O modelo foi treinado exclusivamente para gráficos do tipo **candlestick**, utilizados em **análise gráfica**. Outros tipos de gráficos não são suportados.
 
-    c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(s4)
-    c5 = tf.keras.layers.BatchNormalization()(c5)
-    c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(c5)
-    s6 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c5)
-    s6 = tf.keras.layers.Dropout(do_freq)(s6)
+    <br>
+    **Como funciona:**  
+    1. Faça o upload de uma imagem de gráfico candlestick (JPG, PNG ou JPEG).  
+    2. A imagem será redimensionada e processada pelo nosso modelo.  
+    3. Você verá a previsão e uma prévia da sua imagem.
+    """, unsafe_allow_html=True)
 
-    flat = tf.keras.layers.Flatten()(s6)
-    f7 = tf.keras.layers.Dense(256, activation='relu')(flat)
-    f7 = tf.keras.layers.BatchNormalization()(f7)
-    f7 = tf.keras.layers.Dropout(do_freq)(f7)
-    f8 = tf.keras.layers.Dense(128, activation='relu')(f7)
-    f8 = tf.keras.layers.BatchNormalization()(f8)
-    f8 = tf.keras.layers.Dropout(do_freq)(f8)
-    outputs = tf.keras.layers.Dense(2, activation='softmax')(f8)
+    uploaded_file = st.file_uploader(
+        "Passo 1: Faça o upload de uma imagem de gráfico candlestick de ações",
+        type=["jpg", "png", "jpeg"],
+        help="Formatos aceitos: JPG, PNG, JPEG. A imagem deve ser um gráfico candlestick representando tendências de preços de ações."
+    )
 
-    return tf.keras.models.Model(inputs, outputs, name='my_lenet')
+    # Define a arquitetura do modelo
+    def my_lenet(do_freq=0.3):
+        inputs = tf.keras.layers.Input(shape=(128,128,3))
 
-# Load the model once
-model = my_lenet()
-model.load_weights("best_model.weights.h5")
+        c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(inputs)
+        c1 = tf.keras.layers.BatchNormalization()(c1)
+        c1 = tf.keras.layers.Conv2D(32, 3, padding='same', activation='relu')(c1)
+        s2 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c1)
+        s2 = tf.keras.layers.Dropout(do_freq)(s2)
 
-if uploaded_file is not None:
-    original_image = Image.open(uploaded_file).convert("RGB")
-    resized_image = original_image.resize((128, 128))
-    img_array = np.array(resized_image) / 255.0  # Normalize pixel values
-    img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
+        c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(s2)
+        c3 = tf.keras.layers.BatchNormalization()(c3)
+        c3 = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(c3)
+        s4 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c3)
+        s4 = tf.keras.layers.Dropout(do_freq)(s4)
 
-    try:
-        preds = model.predict(img_batch)
-        pred_class_idx = int(np.argmax(preds, axis=1)[0])
-        pred_class = "up" if pred_class_idx == 1 else "down"
-        st.badge("Image processed successfully", icon=":material/check:", color="green")
-        st.write("Based on our model, this asset price will go ", pred_class)
-    except Exception as e:
-        st.warning(f"Model could not be loaded or prediction failed: {e}")
-        preds = None
-    
-    # Show original and resized side by side
-    tab1, tab2 = st.tabs(["Original Image", "Resized Image"])
+        c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(s4)
+        c5 = tf.keras.layers.BatchNormalization()(c5)
+        c5 = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(c5)
+        s6 = tf.keras.layers.MaxPool2D(pool_size=(2, 2))(c5)
+        s6 = tf.keras.layers.Dropout(do_freq)(s6)
 
-    with tab1:
-        st.image(original_image, caption="Original image", width="content")
-    with tab2:
-        st.image(resized_image, caption="Resized (128x128)", width="content")
+        flat = tf.keras.layers.Flatten()(s6)
+        f7 = tf.keras.layers.Dense(256, activation='relu')(flat)
+        f7 = tf.keras.layers.BatchNormalization()(f7)
+        f7 = tf.keras.layers.Dropout(do_freq)(f7)
+        f8 = tf.keras.layers.Dense(128, activation='relu')(f7)
+        f8 = tf.keras.layers.BatchNormalization()(f8)
+        f8 = tf.keras.layers.Dropout(do_freq)(f8)
+        outputs = tf.keras.layers.Dense(2, activation='softmax')(f8)
+
+        return tf.keras.models.Model(inputs, outputs, name='my_lenet')
+
+    # Carrega o modelo uma vez
+    @st.cache_resource
+    def load_model():
+        model = my_lenet()
+        model.load_weights("best_model.weights.h5")
+        return model
+
+    model = load_model()
+
+    if uploaded_file is not None:
+        st.markdown("### Passo 2: Pré-visualização e Processamento da Imagem")
+        st.caption("""
+        Tratamentos aplicados à imagem:
+        - Conversão para o formato RGB (cores padrão).
+        - Redimensionamento para 128x128 pixels para compatibilidade com o modelo.
+        - Normalização dos valores dos pixels (de 0 a 1).
+        Esses passos garantem que a imagem esteja no formato ideal para análise pelo modelo de rede neural.
+        """)
+        original_image = Image.open(uploaded_file).convert("RGB")
+        resized_image = original_image.resize((128, 128))
+        img_array = np.array(resized_image) / 255.0  # Normaliza os valores dos pixels
+        img_batch = np.expand_dims(img_array, axis=0)  # Adiciona dimensão de lote
+
+        tab1, tab2 = st.tabs(["🖼️ Imagem Original", "🔍 Imagem Redimensionada (128x128)"])
+        with tab1:
+            st.image(original_image, caption="Imagem original", use_column_width=True)
+        with tab2:
+            st.image(resized_image, caption="Redimensionada (128x128)", use_column_width=True)
+
+        st.markdown("### Passo 3: Resultado da Previsão")
+        with st.spinner("Analisando sua imagem..."):
+            try:
+                preds = model.predict(img_batch)
+                pred_class_idx = int(np.argmax(preds, axis=1)[0])
+                pred_class = "📈 Subida" if pred_class_idx == 1 else "📉 Queda"
+                st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
+                st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
+            except Exception as e:
+                st.error(f"Não foi possível carregar o modelo ou realizar a previsão: {e}")
+    else:
+        st.info("Por favor, faça o upload de uma imagem de gráfico candlestick para começar.")
+
+elif page == "🧠 Sobre o Modelo CNN":
+    st.header("🧠 Sobre o Modelo de Rede Neural Convolucional (CNN)")
+    st.markdown("""
+    Este aplicativo utiliza uma arquitetura de rede neural convolucional (CNN) inspirada no clássico **LeNet-5**, porém com diversas melhorias modernas, como camadas de normalização em lote (*Batch Normalization*) e *Dropout* para evitar overfitting.
+
+    ### Por que essa arquitetura?
+    - Redes CNN são especialmente eficazes para análise de imagens, pois conseguem extrair padrões visuais relevantes.
+    - A arquitetura escolhida é robusta, eficiente e adaptada para gráficos financeiros, permitindo identificar tendências visuais em gráficos candlestick.
+
+    ### Dados utilizados no treinamento
+    - Foram utilizados **64.000 gráficos candlestick** de ações listadas na **Nasdaq** e **NYSE**, cobrindo o período de **2020 a 2025**.
+    - Os dados foram baixados via biblioteca **yfinance** e os gráficos gerados com **mplfinance**.
+    - Todo o conjunto de dados foi normalizado para evitar viés e garantir maior precisão.
+
+    ### Principais métricas do modelo
+    - **Acurácia final de teste:** 99,40%
+    - **F1 Score:** 0,9936
+    - **Erro de omissão para subida:** 0,62%
+    - **Erro de comissão para subida:** 0,66%
+    - **Erro de omissão para queda:** 0,58%
+    - **Erro de comissão para queda:** 0,55%
+
+    Estes resultados indicam que o modelo é altamente confiável para identificar tendências de subida ou queda em gráficos candlestick, considerando o horizonte de previsão de **t+5** períodos.
+
+    ---
+    **Observação:** Apesar da alta precisão, este modelo serve apenas como ferramenta de apoio e não substitui análise financeira profissional.
+    """)
