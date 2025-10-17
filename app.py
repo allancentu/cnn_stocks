@@ -120,6 +120,7 @@ if page == "🏠 Página Principal":
 
             def feedback_dialog():
                 st.markdown("Ajude-nos a melhorar! Preencha as informações abaixo:")
+
                 ticker = st.text_input("Ticker do ativo", placeholder="Ex: PETR4")
                 col1, col2 = st.columns(2)
                 with col1:
@@ -131,7 +132,20 @@ if page == "🏠 Página Principal":
                 url_fonte = st.text_input("Fonte dos dados (URL)", placeholder="Cole aqui o link da fonte")
                 acerto = st.radio("O modelo acertou a previsão?", ["Sim", "Não"])
                 email = st.text_input("Seu e-mail (opcional)", placeholder="Para receber novidades do projeto")
-                enviar = st.button("Enviar Feedback", key="enviar_feedback")
+
+                obrigatorios_preenchidos = (
+                    ticker.strip() != "" and
+                    data_inicio is not None and
+                    hora_inicio is not None and
+                    data_fim is not None and
+                    hora_fim is not None and
+                    acerto in ["Sim", "Não"]
+                )
+
+                if not obrigatorios_preenchidos:
+                    st.warning("Por favor, preencha todos os campos obrigatórios marcados com (*).")
+
+                enviar = st.button("Enviar Feedback", key="enviar_feedback", disabled=not obrigatorios_preenchidos)
 
                 if enviar:
                     feedback_obj = {
@@ -142,14 +156,12 @@ if page == "🏠 Página Principal":
                         "hora_fim": str(hora_fim),
                         "url_fonte": url_fonte,
                         "acerto": acerto,
-                        "email": email,
-                        "caminho_imagem_original": str(uploaded_file.name),
-                        "caminho_imagem_redimensionada": "imagem_redimensionada.png"
+                        "email": email
                     }
                     st.success("Obrigado pelo seu feedback! Sua resposta foi registrada com sucesso. 😊")
                     st.json(feedback_obj)
                     st.session_state.show_dialog = False
-
+                    
             if st.button("Abrir Formulário de Feedback"):
                 st.session_state.show_dialog = True
 
