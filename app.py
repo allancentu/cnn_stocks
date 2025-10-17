@@ -43,7 +43,7 @@ def my_lenet(do_freq=0.3):
 model = my_lenet()
 
 try:
-    model = tf.keras.models.load_weights("best_model.weights.h5")
+    model.load_weights("best_model.weights.h5")
 except Exception as e:
     st.warning(f"Model could not be loaded: {e}")
     model = None
