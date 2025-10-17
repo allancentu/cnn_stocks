@@ -2,9 +2,3 @@ numpy
 streamlit
 tensorflow
 Pillow
-requests
-csv
-json
-os
-datetime
-pathlib
