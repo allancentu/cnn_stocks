@@ -2,3 +2,9 @@ numpy
 streamlit
 tensorflow
 Pillow
+gspread
+csv
+json
+os
+datetime
+pathlib
