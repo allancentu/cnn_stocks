@@ -19,7 +19,7 @@ if page == "🏠 Página Principal":
 
     **Importante:**  
     - As previsões são para o período **t+5** (cinco períodos após o último período mostrado no gráfico).
-    - O modelo foi treinado exclusivamente para gráficos do tipo **candlestick**, utilizados em **análise gráfica**. Outros tipos de gráficos não são suportados.
+    - O modelo foi treinado exclusivamente para gráficos do tipo **candlestick**, utilizados em **análise gráfica**. O uso de outros tipos de gráficos ou imagens pode gerar resultados inesperados.
 
     **Como funciona:**  
     1. Faça o upload de uma imagem de gráfico candlestick (JPG, PNG ou JPEG).  
@@ -105,7 +105,7 @@ if page == "🏠 Página Principal":
                 st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
 
                 # Exibe as probabilidades
-                st.markdown("#### Probabilidades da Previsão")
+                st.markdown("**Probabilidades da Previsão**")
                 st.write({
                     "Probabilidade de subir (📈)": float(preds[0][1]),
                     "Probabilidade de cair (📉)": float(preds[0][0])
