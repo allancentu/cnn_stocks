@@ -46,15 +46,19 @@ model.load_weights("best_model.weights.h5")
 if uploaded_file is not None:
     original_image = Image.open(uploaded_file).convert("RGB")
     resized_image = original_image.resize((128, 128))
-
-    # Show original and resized side by side
-    col1, col2 = st.columns(2)
-    col1.image(original_image, caption="Original image", use_column_width=True)
-    col2.image(resized_image, caption="Resized (128x128)", use_column_width=True)
-
     img_array = np.array(resized_image) / 255.0  # Normalize pixel values
     img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
 
+    # Show original and resized side by side
+    tab1, tab2 = st.tabs(["Original Image", "Resized Image"])
+
+    with tab1:
+        st.header("A cat")
+        st.image(original_image, caption="Original image", width="content")
+    with tab2:
+        st.header("A dog")
+        st.image(resized_image, caption="Resized (128x128)", width="content")
+        
     try:
         preds = model.predict(img_batch)
         pred_class_idx = int(np.argmax(preds, axis=1)[0])
