@@ -41,12 +41,7 @@ def my_lenet(do_freq=0.3):
 
 # Load the model once
 model = my_lenet()
-
-try:
-    model.load_weights("best_model.weights.h5")
-except Exception as e:
-    st.warning(f"Model could not be loaded: {e}")
-    model = None
+model.load_weights("best_model.weights.h5")
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
