@@ -1,6 +1,5 @@
 import streamlit as st
 import tensorflow as tf
-from tensorflow.keras.models import load_weights
 import numpy as np
 from PIL import Image
 
@@ -44,7 +43,7 @@ def my_lenet(do_freq=0.3):
 model = my_lenet()
 
 try:
-    model = load_weights("best_model.weights.h5")
+    model = tf.keras.models.load_weights("best_model.weights.h5")
 except Exception as e:
     st.warning(f"Model could not be loaded: {e}")
     model = None
