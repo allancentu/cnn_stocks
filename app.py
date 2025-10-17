@@ -7,7 +7,6 @@ import os
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
-import requests
 
 st.title("Stock Trend Prediction")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
@@ -48,32 +47,6 @@ def my_lenet(do_freq=0.3):
 # Load the model once
 model = my_lenet()
 model.load_weights("best_model.weights.h5")
-
-def save_to_google_sheets(record, creds_json, sheet_id, sheet_name="Sheet1"):
-    # Use Google Sheets API directly via HTTP requests
-    import google.auth
-    from google.oauth2 import service_account
-    from google.auth.transport.requests import AuthorizedSession
-
-    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-    creds = service_account.Credentials.from_service_account_info(json.loads(creds_json), scopes=SCOPES)
-    authed_session = AuthorizedSession(creds)
-
-    # Prepare the row to append
-    row = [
-        record["timestamp"],
-        record["prediction"],
-        record["original_image_path"],
-        record["resized_image_path"],
-        json.dumps(record["votes"]),
-    ]
-    body = {
-        "values": [row]
-    }
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{sheet_name}!A1:append?valueInputOption=USER_ENTERED"
-    response = authed_session.post(url, json=body)
-    if not response.ok:
-        raise Exception(f"Google Sheets API error: {response.text}")
 
 if uploaded_file is not None:
     original_image = Image.open(uploaded_file).convert("RGB")
@@ -128,39 +101,16 @@ if uploaded_file is not None:
                 "votes": votes
             }
 
-            # Try to save votes to Google Sheets if service account creds provided, otherwise fall back to local disk
-            GS_CREDS = os.environ.get("GS_CREDENTIALS_JSON")  # full service account JSON as env var
-            GS_SHEET_ID = os.environ.get("GS_SHEET_ID")      # Google Sheet ID (from URL)
-            GS_SHEET_NAME = os.environ.get("GS_SHEET_NAME", "Sheet1")
+            # Always save locally
+            csv_file = save_dir / "votes.csv"
+            write_header = not csv_file.exists()
 
-            if GS_CREDS and GS_SHEET_ID:
-                try:
-                    save_to_google_sheets(record, GS_CREDS, GS_SHEET_ID, GS_SHEET_NAME)
-                    st.success("Saved votes to Google Sheet.")
-                except Exception as e:
-                    st.warning(f"Google Sheets save failed: {e}. Falling back to local save.")
-                    try:
-                        csv_file = save_dir / "votes.csv"
-                        write_header = not csv_file.exists()
-                        with open(csv_file, "a", newline="", encoding="utf-8") as f:
-                            writer = csv.writer(f)
-                            if write_header:
-                                writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
-                            writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
-                        st.success("Votes saved locally. Note: local storage may be ephemeral in cloud environments.")
-                    except Exception as e_local:
-                        st.error(f"Failed to save locally as fallback: {e_local}")
-            else:
-                # No Google Sheets config found -> save locally (may be ephemeral in cloud)
-                csv_file = save_dir / "votes.csv"
-                write_header = not csv_file.exists()
-
-                try:
-                    with open(csv_file, "a", newline="", encoding="utf-8") as f:
-                        writer = csv.writer(f)
-                        if write_header:
-                            writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
-                        writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
-                    st.success("Votes saved locally. Note: local storage may be ephemeral in cloud environments.")
-                except Exception as e:
-                    st.error(f"Failed to save votes locally: {e}")
+            try:
+                with open(csv_file, "a", newline="", encoding="utf-8") as f:
+                    writer = csv.writer(f)
+                    if write_header:
+                        writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
+                    writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
+                st.success("Votes saved locally. Note: local storage may be ephemeral in cloud environments.")
+            except Exception as e:
+                st.error(f"Failed to save votes locally: {e}")
