@@ -91,9 +91,9 @@ if page == "🏠 Página Principal":
 
         tab1, tab2 = st.tabs(["🖼️ Imagem Original", "🔍 Imagem Redimensionada (128x128)"])
         with tab1:
-            st.image(original_image, caption="Imagem original", use_column_width=True)
+            st.image(original_image, caption="Imagem original", width="content")
         with tab2:
-            st.image(resized_image, caption="Redimensionada (128x128)", use_column_width=True)
+            st.image(resized_image, caption="Redimensionada (128x128)", width="content")
 
         st.markdown("### Passo 3: Resultado da Previsão")
         with st.spinner("Analisando sua imagem..."):
