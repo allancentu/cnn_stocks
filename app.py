@@ -3,6 +3,8 @@ import tensorflow as tf
 import numpy as np
 import csv
 import json
+import os
+import gspread
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
@@ -89,10 +91,9 @@ if uploaded_file is not None:
 
         # Voting form for 5 future periods
         with st.form("vote_form"):
-            votes = []
-            for i in range(1, 6):
-                votes.append(st.radio(f"Period {i}: Was the prediction correct?", ("Yes", "No"), key=f"period_{i}"))
-            submitted = st.form_submit_button("Submit votes")
+            vote = st.radio("Period 5 (five periods in the future): Was the prediction correct?", ("Yes", "No"), key="period_5")
+            submitted = st.form_submit_button("Submit vote")
+        votes = {"period_5": vote}
 
         if submitted:
             record = {
@@ -103,15 +104,65 @@ if uploaded_file is not None:
                 "votes": votes
             }
 
-            csv_file = save_dir / "votes.csv"
-            write_header = not csv_file.exists()
+            # Try to save votes to Google Sheets if service account creds provided, otherwise fall back to local disk
+            GS_CREDS = os.environ.get("GS_CREDENTIALS_JSON")  # full service account JSON as env var
+            GS_SHEET_ID = os.environ.get("GS_SHEET_ID")      # Google Sheet ID (from URL)
+            GS_SHEET_NAME = os.environ.get("GS_SHEET_NAME", "Sheet1")
 
-            try:
-                with open(csv_file, "a", newline="", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    if write_header:
-                        writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
-                    writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
-                st.success("Votes saved. Thank you.")
-            except Exception as e:
-                st.error(f"Failed to save votes: {e}")
+            if GS_CREDS and GS_SHEET_ID:
+                try:
+
+                    creds_dict = json.loads(GS_CREDS)
+                    client = gspread.service_account_from_dict(creds_dict)
+
+                    sh = client.open_by_key(GS_SHEET_ID)
+                    try:
+                        worksheet = sh.worksheet(GS_SHEET_NAME)
+                    except Exception:
+                        worksheet = sh.sheet1
+
+                    # ensure header exists
+                    values = worksheet.get_all_values()
+                    header = ["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"]
+                    if not values or values[0] != header:
+                        try:
+                            worksheet.insert_row(header, index=1)
+                        except Exception:
+                            worksheet.update("A1", [header])
+
+                    row = [
+                        record["timestamp"],
+                        record["prediction"],
+                        record["original_image_path"],
+                        record["resized_image_path"],
+                        json.dumps(record["votes"]),
+                    ]
+                    worksheet.append_row(row, value_input_option="USER_ENTERED")
+                    st.success("Saved votes to Google Sheet.")
+                except Exception as e:
+                    st.warning(f"Google Sheets save failed: {e}. Falling back to local save.")
+                    try:
+                        csv_file = save_dir / "votes.csv"
+                        write_header = not csv_file.exists()
+                        with open(csv_file, "a", newline="", encoding="utf-8") as f:
+                            writer = csv.writer(f)
+                            if write_header:
+                                writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
+                            writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
+                        st.success("Votes saved locally. Note: local storage may be ephemeral in cloud environments.")
+                    except Exception as e_local:
+                        st.error(f"Failed to save locally as fallback: {e_local}")
+            else:
+                # No Google Sheets config found -> save locally (may be ephemeral in cloud)
+                csv_file = save_dir / "votes.csv"
+                write_header = not csv_file.exists()
+
+                try:
+                    with open(csv_file, "a", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        if write_header:
+                            writer.writerow(["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"])
+                        writer.writerow([record["timestamp"], record["prediction"], record["original_image_path"], record["resized_image_path"], json.dumps(record["votes"])])
+                    st.success("Votes saved locally. Note: local storage may be ephemeral in cloud environments.")
+                except Exception as e:
+                    st.error(f"Failed to save votes locally: {e}")
