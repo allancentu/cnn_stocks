@@ -96,13 +96,13 @@ if page == "🏠 Página Principal":
             st.image(resized_image, caption="Redimensionada (128x128)", width="content")
 
         st.markdown("### Passo 3: Resultado da Previsão")
+        st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
         with st.spinner("Analisando sua imagem..."):
             try:
                 preds = model.predict(img_batch)
                 pred_class_idx = int(np.argmax(preds, axis=1)[0])
                 pred_class = "📈 subir" if pred_class_idx == 1 else "📉 cair"
                 st.success(f"**Previsão para t+5:** O modelo prevê que o preço do ativo irá **{pred_class}** daqui a cinco períodos.")
-                st.caption("Nota: Esta previsão é baseada apenas na imagem de gráfico candlestick enviada e não constitui recomendação financeira.")
 
                 # Exibe as probabilidades
                 st.markdown("#### Probabilidades da Previsão")
