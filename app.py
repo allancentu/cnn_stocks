@@ -4,16 +4,15 @@ import numpy as np
 import csv
 import json
 import os
-import gspread
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
+import requests
 
 st.title("Stock Trend Prediction")
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "png", "jpeg"])
 
 # Define the model architecture
-@st.cache_resource
 def my_lenet(do_freq=0.3):
     inputs = tf.keras.layers.Input(shape=(128,128,3))
 
@@ -50,23 +49,48 @@ def my_lenet(do_freq=0.3):
 model = my_lenet()
 model.load_weights("best_model.weights.h5")
 
+def save_to_google_sheets(record, creds_json, sheet_id, sheet_name="Sheet1"):
+    # Use Google Sheets API directly via HTTP requests
+    import google.auth
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import AuthorizedSession
+
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+    creds = service_account.Credentials.from_service_account_info(json.loads(creds_json), scopes=SCOPES)
+    authed_session = AuthorizedSession(creds)
+
+    # Prepare the row to append
+    row = [
+        record["timestamp"],
+        record["prediction"],
+        record["original_image_path"],
+        record["resized_image_path"],
+        json.dumps(record["votes"]),
+    ]
+    body = {
+        "values": [row]
+    }
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{sheet_name}!A1:append?valueInputOption=USER_ENTERED"
+    response = authed_session.post(url, json=body)
+    if not response.ok:
+        raise Exception(f"Google Sheets API error: {response.text}")
+
 if uploaded_file is not None:
-    if uploaded_file is not None:
-        original_image = Image.open(uploaded_file).convert("RGB")
-        resized_image = original_image.resize((128, 128))
-    
-        # Show original and resized side by side
-        col1, col2 = st.columns(2)
-        col1.image(original_image, caption="Original image", width="stretch")
-        col2.image(resized_image, caption="Resized (128x128)", width="stretch")
-    
-        img_array = np.array(resized_image) / 255.0  # Normalize pixel values
-        img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    original_image = Image.open(uploaded_file).convert("RGB")
+    resized_image = original_image.resize((128, 128))
+
+    # Show original and resized side by side
+    col1, col2 = st.columns(2)
+    col1.image(original_image, caption="Original image", use_column_width=True)
+    col2.image(resized_image, caption="Resized (128x128)", use_column_width=True)
+
+    img_array = np.array(resized_image) / 255.0  # Normalize pixel values
+    img_batch = np.expand_dims(img_array, axis=0)  # Add batch dimension
 
     try:
         preds = model.predict(img_batch)
-        pred_class = int(np.argmax(preds, axis=1)[0])
-        pred_class = "Up" if pred_class == 1 else "Down"
+        pred_class_idx = int(np.argmax(preds, axis=1)[0])
+        pred_class = "Up" if pred_class_idx == 1 else "Down"
         st.write("Predicted class:", pred_class)
     except Exception as e:
         st.warning(f"Model could not be loaded or prediction failed: {e}")
@@ -111,33 +135,7 @@ if uploaded_file is not None:
 
             if GS_CREDS and GS_SHEET_ID:
                 try:
-
-                    creds_dict = json.loads(GS_CREDS)
-                    client = gspread.service_account_from_dict(creds_dict)
-
-                    sh = client.open_by_key(GS_SHEET_ID)
-                    try:
-                        worksheet = sh.worksheet(GS_SHEET_NAME)
-                    except Exception:
-                        worksheet = sh.sheet1
-
-                    # ensure header exists
-                    values = worksheet.get_all_values()
-                    header = ["timestamp", "prediction", "original_image_path", "resized_image_path", "votes_json"]
-                    if not values or values[0] != header:
-                        try:
-                            worksheet.insert_row(header, index=1)
-                        except Exception:
-                            worksheet.update("A1", [header])
-
-                    row = [
-                        record["timestamp"],
-                        record["prediction"],
-                        record["original_image_path"],
-                        record["resized_image_path"],
-                        json.dumps(record["votes"]),
-                    ]
-                    worksheet.append_row(row, value_input_option="USER_ENTERED")
+                    save_to_google_sheets(record, GS_CREDS, GS_SHEET_ID, GS_SHEET_NAME)
                     st.success("Saved votes to Google Sheet.")
                 except Exception as e:
                     st.warning(f"Google Sheets save failed: {e}. Falling back to local save.")
