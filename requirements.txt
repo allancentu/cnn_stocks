@@ -1,7 +1,8 @@
 numpy
-streamlit
 tensorflow
 yfinance==0.2.66
-lxml
+streamlit==1.50.0
+pandas==2.3.3
+lxml==6.0.2
 mplfinance
 Pillow
