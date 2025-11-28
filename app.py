@@ -4,7 +4,6 @@ import numpy as np
 from PIL import Image
 import yfinance as yf
 import mplfinance as mpf
-from pytickersymbols import PyTickerSymbols
 import pandas as pd
 from datetime import datetime, timedelta
 import time
@@ -84,56 +83,52 @@ def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
 
 # Helper functions for live stock tracking
 def search_stocks(query):
-    """Search for stocks matching the query."""
-    stock_data = PyTickerSymbols()
-    us_indexes = ['DOW JONES', 'NASDAQ 100', 'S&P 100', 'S&P 500']
-    
-    all_stocks = []
-    for index_name in us_indexes:
-        try:
-            stocks = stock_data.get_stocks_by_index(index_name)
-            all_stocks.extend(stocks)
-        except Exception:
-            pass
-    
-    # Filter stocks matching query
-    query_lower = query.lower()
-    matches = []
-    seen_symbols = set()
-    
-    for stock in all_stocks:
-        symbol = stock['symbol']
-        name = stock.get('name', '')
+    """Search for stocks using yfinance."""
+    # Try direct ticker lookup first
+    try:
+        ticker = yf.Ticker(query.upper())
+        info = ticker.info
         
-        # Avoid duplicates
-        if symbol in seen_symbols:
-            continue
-        
-        if query_lower in symbol.lower() or query_lower in name.lower():
-            matches.append({
-                'symbol': symbol,
-                'name': name,
-                'country': stock.get('country', 'US')
-            })
-            seen_symbols.add(symbol)
+        if info and 'symbol' in info:
+            return [{
+                'symbol': info.get('symbol', query.upper()),
+                'name': info.get('longName', info.get('shortName', 'Unknown')),
+                'country': 'US'
+            }]
+    except Exception:
+        pass
     
-    return matches
+    # If direct lookup fails, return empty (user can try another ticker)
+    return []
 
-def fetch_stock_data(ticker, period='1d', interval='1m'):
-    """Fetch stock data from yfinance."""
+def fetch_stock_data(ticker):
+    """Fetch stock data from yfinance. Returns (data, is_market_open)."""
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period=period, interval=interval)
         
-        if data.empty:
-            return None
+        # Try to get 1-minute data for today first (market open)
+        data = stock.history(period='1d', interval='1m')
         
-        # Get last 30 rows
-        data = data.tail(30)
-        return data
+        if not data.empty and len(data) >= 30:
+            # Recent data available - market likely open or just closed
+            return data.tail(30), True
+        
+        # If not enough recent data, try last 5 days with 1-minute interval
+        data = stock.history(period='5d', interval='1m')
+        
+        if not data.empty and len(data) >= 30:
+            # Got historical data - market is closed
+            return data.tail(30), False
+        
+        # Last resort: try 1 hour interval for last month
+        data = stock.history(period='1mo', interval='1h')
+        if not data.empty and len(data) >= 30:
+            return data.tail(30), False
+            
+        return None, False
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        return None
+        st.error(f"Erro ao buscar dados: {e}")
+        return None, False
 
 def plot_candlestick_chart(data, ticker):
     """Plot candlestick chart using mplfinance."""
@@ -434,9 +429,15 @@ elif page == "📊 Live Stock Tracker":
         
         # Fetch and display data
         with st.spinner("Carregando dados..."):
-            data = fetch_stock_data(st.session_state.selected_ticker)
+            result = fetch_stock_data(st.session_state.selected_ticker)
             
-            if data is not None and not data.empty:
+            if result[0] is not None and not result[0].empty:
+                data, is_market_open = result
+                
+                # Show market status warning if closed
+                if not is_market_open:
+                    st.warning("⚠️ **Mercado fechado.** Mostrando os últimos dados disponíveis. Os dados podem não refletir as últimas 30 minutos de negociação.")
+                
                 # Display chart
                 fig = plot_candlestick_chart(data, st.session_state.selected_ticker)
                 if fig:
@@ -452,7 +453,7 @@ elif page == "📊 Live Stock Tracker":
                 with col_b:
                     change = data['Close'].iloc[-1] - data['Close'].iloc[0]
                     change_pct = (change / data['Close'].iloc[0]) * 100
-                    st.metric("Variação (30min)", f"${change:.2f}", f"{change_pct:+.2f}%")
+                    st.metric("Variação", f"${change:.2f}", f"{change_pct:+.2f}%")
                 
                 with col_c:
                     volume = data['Volume'].sum()
@@ -462,8 +463,8 @@ elif page == "📊 Live Stock Tracker":
                     update_time = datetime.now().strftime("%H:%M:%S")
                     st.metric("Última Atualização", update_time)
                 
-                # Auto-refresh logic
-                if st.session_state.auto_refresh:
+                # Auto-refresh logic (only if market is open)
+                if st.session_state.auto_refresh and is_market_open:
                     elapsed = time.time() - st.session_state.last_refresh
                     remaining = max(0, 60 - int(elapsed))
                     
@@ -474,7 +475,9 @@ elif page == "📊 Live Stock Tracker":
                     else:
                         st.session_state.last_refresh = time.time()
                         st.rerun()
+                elif not is_market_open and st.session_state.auto_refresh:
+                    st.info("ℹ️ Auto-refresh pausado enquanto o mercado está fechado.")
             else:
-                st.error("⚠️ Não foi possível carregar os dados desta ação. Verifique se o mercado está aberto ou tente outra ação.")
+                st.error("⚠️ Não foi possível carregar os dados desta ação. Verifique o símbolo do ticker e tente novamente.")
     else:
         st.info("👆 Use a busca acima para selecionar uma ação e visualizar o gráfico ao vivo.")
