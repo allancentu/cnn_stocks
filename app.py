@@ -100,30 +100,27 @@ def search_stocks(query):
     try:
         ticker_obj = yf.Ticker(query)
         
-        # Try to get some basic info to validate the ticker exists
-        # Using history is more reliable than info for validation
+        # Use fast_info which is more reliable and doesn't make complex API calls
         try:
-            test_data = ticker_obj.history(period='1d', interval='1d')
-        except Exception:
-            # Retry with different period if first attempt fails
-            try:
-                test_data = ticker_obj.history(period='5d')
-            except Exception:
-                return []
-        
-        if test_data is not None and not test_data.empty:
-            # Valid ticker - try to get name info
-            try:
-                info = ticker_obj.info
-                name = info.get('longName', info.get('shortName', query))
-            except:
-                name = query
+            fast_info = ticker_obj.fast_info
+            # If we can access fast_info without error, ticker is valid
+            if fast_info and hasattr(fast_info, 'last_price'):
+                # Try to get the name
+                try:
+                    info = ticker_obj.info
+                    name = info.get('longName', info.get('shortName', query))
+                except:
+                    name = query
+                
+                return [{
+                    'symbol': query,
+                    'name': name,
+                    'country': 'US'
+                }]
+        except:
+            # If fast_info fails, ticker likely doesn't exist
+            pass
             
-            return [{
-                'symbol': query,
-                'name': name,
-                'country': 'US'
-            }]
     except Exception as e:
         # Ticker not found or error - silently fail
         pass
