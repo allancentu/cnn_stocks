@@ -1,6 +1,7 @@
 numpy
 streamlit
 tensorflow
-yfinance
+yfinance==0.2.66
+lxml
 mplfinance
 Pillow
