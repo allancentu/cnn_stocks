@@ -84,14 +84,16 @@ def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
     )
 
 # Helper functions for live stock tracking
+@st.cache_data(ttl=60)  # Cache for 60 seconds to avoid rapid repeated requests
 def fetch_stock_data(ticker):
     """Fetch last 30 minutes of 1-minute interval stock data. Returns (data, is_market_open)."""
     try:
         # Create ticker object
         stock = yf.Ticker(ticker)
         
-        # Get 1-minute interval data for the last 5 days (to ensure we have data even if market just opened)
-        df = stock.history(period='5d', interval='1m')
+        # Get 1-minute interval data for the last 1 day (reduced from 5d to minimize request size)
+        # This is sufficient for getting the last 30 minutes of data
+        df = stock.history(period='1d', interval='1m')
         
         if df.empty:
             return None, False
@@ -117,7 +119,8 @@ def fetch_stock_data(ticker):
         return None, False
             
     except Exception as e:
-        # Return None on any error
+        # Log the error for debugging but return None gracefully
+        st.warning(f"Error fetching data for {ticker}: {str(e)}")
         return None, False
 
 def plot_candlestick_chart(data, ticker):
