@@ -83,45 +83,17 @@ def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
         name='cnn_mlp_dual_output'
     )
 
-# Helper functions for live stock tracking
-@st.cache_data(ttl=60)  # Cache for 60 seconds to avoid rapid repeated requests
+# Helper function for fetching stock data (simplified, no caching)
 def fetch_stock_data(ticker):
-    """Fetch last 30 minutes of 1-minute interval stock data. Returns (data, is_market_open)."""
+    """Fetch stock data using yfinance. Returns dataframe or None on error."""
     try:
-        # Create ticker object
         stock = yf.Ticker(ticker)
-        
-        # Get 1-minute interval data for the last 1 day (reduced from 5d to minimize request size)
-        # This is sufficient for getting the last 30 minutes of data
+        # Get 1 day of 1-minute data
         df = stock.history(period='1d', interval='1m')
-        
-        if df.empty:
-            return None, False
-        
-        # Get the last 30 data points
-        data = df.tail(30)
-        
-        if len(data) < 5:  # Need at least 5 points for a meaningful chart
-            return None, False
-        
-        # Check if market is open by looking at how recent the last data point is
-        if not data.empty:
-            last_time = data.index[-1]
-            # Make timezone-aware comparison
-            now = pd.Timestamp.now(tz=last_time.tz)
-            time_diff_minutes = (now - last_time).total_seconds() / 60
-            
-            # If last data is less than 30 minutes old, market is likely open
-            is_market_open = time_diff_minutes < 30
-            
-            return data, is_market_open
-        
-        return None, False
-            
+        return df if not df.empty else None
     except Exception as e:
-        # Log the error for debugging but return None gracefully
-        st.warning(f"Error fetching data for {ticker}: {str(e)}")
-        return None, False
+        st.error(f"Error fetching data: {e}")
+        return None
 
 def plot_candlestick_chart(data, ticker):
     """Plot candlestick chart using mplfinance."""
@@ -339,117 +311,78 @@ elif page == "📊 Live Stock Tracker":
     st.title("📊 Rastreador de Ações ao Vivo")
     
     st.markdown("""
-    Acompanhe os últimos **30 minutos** de negociação de qualquer ação listada nos principais índices dos EUA.
-    O gráfico é atualizado automaticamente a cada minuto com os dados mais recentes.
+    Visualize os últimos **30 minutos** de negociação de qualquer ação.
+    Clique em **Buscar** para carregar os dados mais recentes.
     """)
     
-    # Initialize session state
-    if 'selected_ticker' not in st.session_state:
-        st.session_state.selected_ticker = None
-    if 'auto_refresh' not in st.session_state:
-        st.session_state.auto_refresh = True
-    if 'last_refresh' not in st.session_state:
-        st.session_state.last_refresh = time.time()
-    
-    # Search section
+    # Input section
     st.markdown("### 🔍 Buscar Ação")
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        search_query = st.text_input(
+        ticker = st.text_input(
             "Digite o símbolo do ticker:",
             placeholder="Ex: AAPL, TSLA, GOOGL, AMZN",
-            value=st.session_state.get('search_input', '')
+            value="AAPL"
         )
     
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
         search_button = st.button("🔍 Buscar", use_container_width=True)
     
-    # Handle search - just accept the ticker directly
-    if search_button and search_query:
-        ticker = search_query.upper().strip()
-        if ticker:
-            st.session_state.selected_ticker = ticker
-            st.session_state.search_input = search_query
-            st.success(f"✅ Buscando dados para: **{ticker}**")
-            st.rerun()
-    
-    # Display selected ticker and chart
-    if st.session_state.selected_ticker:
-        st.markdown("---")
-        st.markdown(f"### 📈 Gráfico ao Vivo: **{st.session_state.selected_ticker}**")
-        
-        # Control buttons
-        col1, col2, col3 = st.columns([2, 2, 8])
-        
-        with col1:
-            if st.button("🔄 Atualizar Agora"):
-                st.session_state.last_refresh = time.time()
-                st.rerun()
-        
-        with col2:
-            if st.session_state.auto_refresh:
-                if st.button("⏸️ Pausar Auto-Refresh"):
-                    st.session_state.auto_refresh = False
-                    st.rerun()
-            else:
-                if st.button("▶️ Ativar Auto-Refresh"):
-                    st.session_state.auto_refresh = True
-                    st.session_state.last_refresh = time.time()
-                    st.rerun()
-        
-        # Fetch and display data
-        with st.spinner("Carregando dados..."):
-            result = fetch_stock_data(st.session_state.selected_ticker)
+    # Fetch and display data when button is clicked
+    if search_button:
+        if not ticker.strip():
+            st.error("Por favor, digite um símbolo de ticker válido.")
+        else:
+            ticker = ticker.upper().strip()
             
-            if result[0] is not None and not result[0].empty:
-                data, is_market_open = result
+            with st.spinner(f'Buscando dados para {ticker}...'):
+                data = fetch_stock_data(ticker)
                 
-                # Show market status warning if closed
-                if not is_market_open:
-                    st.warning("⚠️ **Mercado fechado.** Mostrando os últimos dados disponíveis. Os dados podem não refletir as últimas 30 minutos de negociação.")
-                
-                # Display chart
-                fig = plot_candlestick_chart(data, st.session_state.selected_ticker)
-                if fig:
-                    st.pyplot(fig)
-                
-                # Show last update time and metrics
-                col_a, col_b, col_c, col_d = st.columns(4)
-                
-                with col_a:
-                    last_close = data['Close'].iloc[-1]
-                    st.metric("Último Preço", f"${last_close:.2f}")
-                
-                with col_b:
-                    change = data['Close'].iloc[-1] - data['Close'].iloc[0]
-                    change_pct = (change / data['Close'].iloc[0]) * 100
-                    st.metric("Variação", f"${change:.2f}", f"{change_pct:+.2f}%")
-                
-                with col_c:
-                    volume = data['Volume'].sum()
-                    st.metric("Volume Total", f"{volume:,.0f}")
-                
-                with col_d:
-                    update_time = datetime.now().strftime("%H:%M:%S")
-                    st.metric("Última Atualização", update_time)
-                
-                # Auto-refresh logic (only if market is open)
-                if st.session_state.auto_refresh and is_market_open:
-                    elapsed = time.time() - st.session_state.last_refresh
-                    remaining = max(0, 60 - int(elapsed))
+                if data is not None and not data.empty:
+                    st.markdown("---")
+                    st.markdown(f"### 📈 Gráfico: **{ticker}**")
                     
-                    if remaining > 0:
-                        st.info(f"⏱️ Próxima atualização em {remaining} segundos...")
-                        time.sleep(1)
-                        st.rerun()
+                    # Get last 30 data points
+                    chart_data = data.tail(30)
+                    
+                    if len(chart_data) >= 5:
+                        # Display candlestick chart
+                        fig = plot_candlestick_chart(chart_data, ticker)
+                        if fig:
+                            st.pyplot(fig)
+                        
+                        # Show metrics
+                        col_a, col_b, col_c, col_d = st.columns(4)
+                        
+                        with col_a:
+                            last_close = chart_data['Close'].iloc[-1]
+                            st.metric("Último Preço", f"${last_close:.2f}")
+                        
+                        with col_b:
+                            change = chart_data['Close'].iloc[-1] - chart_data['Close'].iloc[0]
+                            change_pct = (change / chart_data['Close'].iloc[0]) * 100
+                            st.metric("Variação", f"${change:.2f}", f"{change_pct:+.2f}%")
+                        
+                        with col_c:
+                            volume = chart_data['Volume'].sum()
+                            st.metric("Volume Total", f"{volume:,.0f}")
+                        
+                        with col_d:
+                            last_time = chart_data.index[-1]
+                            st.metric("Última Atualização", last_time.strftime("%H:%M:%S"))
+                        
+                        # Check market status
+                        last_time = chart_data.index[-1]
+                        now = pd.Timestamp.now(tz=last_time.tz)
+                        time_diff_minutes = (now - last_time).total_seconds() / 60
+                        
+                        if time_diff_minutes > 30:
+                            st.info("ℹ️ **Nota:** Os dados podem não refletir a negociação mais recente. O mercado pode estar fechado.")
                     else:
-                        st.session_state.last_refresh = time.time()
-                        st.rerun()
-                elif not is_market_open and st.session_state.auto_refresh:
-                    st.info("ℹ️ Auto-refresh pausado enquanto o mercado está fechado.")
-            else:
-                st.error("⚠️ Não foi possível carregar os dados desta ação. Verifique o símbolo do ticker e tente novamente.")
+                        st.warning("⚠️ Dados insuficientes para criar o gráfico. Tente novamente mais tarde.")
+                else:
+                    st.error("⚠️ Não foi possível carregar os dados desta ação. Verifique o símbolo do ticker e tente novamente.")
     else:
-        st.info("👆 Use a busca acima para selecionar uma ação e visualizar o gráfico ao vivo.")
+        st.info("👆 Digite um símbolo de ticker e clique em **Buscar** para visualizar o gráfico.")
