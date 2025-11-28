@@ -9,6 +9,10 @@ from datetime import datetime, timedelta
 import time
 import io
 
+# Configure yfinance to avoid curl_cffi Chrome impersonation issues
+import os
+os.environ['YF_ENABLE_EXPERIMENTAL_QUOTE_QUERY'] = '0'
+
 # Define a arquitetura do modelo (dual-output matching stock_cnn.py)
 def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
     """
