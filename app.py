@@ -87,28 +87,37 @@ def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
 def fetch_stock_data(ticker):
     """Fetch last 30 minutes of 1-minute interval stock data. Returns (data, is_market_open)."""
     try:
+        # Create ticker object
         stock = yf.Ticker(ticker)
         
-        # Try to get 1-minute data for today (last 30 data points)
-        data = stock.history(period='5d', interval='1m')
+        # Get 1-minute interval data for the last 5 days (to ensure we have data even if market just opened)
+        df = stock.history(period='5d', interval='1m')
         
-        if not data.empty and len(data) >= 5:  # At least 5 data points
-            # Get last 30 rows (or whatever is available)
-            last_30 = data.tail(30)
+        if df.empty:
+            return None, False
+        
+        # Get the last 30 data points
+        data = df.tail(30)
+        
+        if len(data) < 5:  # Need at least 5 points for a meaningful chart
+            return None, False
+        
+        # Check if market is open by looking at how recent the last data point is
+        if not data.empty:
+            last_time = data.index[-1]
+            # Make timezone-aware comparison
+            now = pd.Timestamp.now(tz=last_time.tz)
+            time_diff_minutes = (now - last_time).total_seconds() / 60
             
-            # Check if data is recent (market open)
-            if not data.empty:
-                last_time = data.index[-1]
-                now = pd.Timestamp.now(tz=last_time.tz)
-                time_diff = (now - last_time).total_seconds() / 60  # minutes
-                
-                is_recent = time_diff < 30  # Data is less than 30 min old
-                return last_30, is_recent
+            # If last data is less than 30 minutes old, market is likely open
+            is_market_open = time_diff_minutes < 30
+            
+            return data, is_market_open
         
-        # If no recent data, return None
         return None, False
             
     except Exception as e:
+        # Return None on any error
         return None, False
 
 def plot_candlestick_chart(data, ticker):
