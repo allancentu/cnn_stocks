@@ -89,13 +89,23 @@ def search_stocks(query):
     
     query = query.upper().strip()
     
-    # Try direct ticker lookup
+    # Try direct ticker lookup with retry logic
+    import warnings
+    warnings.filterwarnings('ignore')
+    
     try:
         ticker_obj = yf.Ticker(query)
         
         # Try to get some basic info to validate the ticker exists
         # Using history is more reliable than info for validation
-        test_data = ticker_obj.history(period='5d', interval='1d')
+        try:
+            test_data = ticker_obj.history(period='1d', interval='1d')
+        except Exception:
+            # Retry with different period if first attempt fails
+            try:
+                test_data = ticker_obj.history(period='5d')
+            except Exception:
+                return []
         
         if test_data is not None and not test_data.empty:
             # Valid ticker - try to get name info
@@ -111,7 +121,7 @@ def search_stocks(query):
                 'country': 'US'
             }]
     except Exception as e:
-        # Ticker not found or error
+        # Ticker not found or error - silently fail
         pass
     
     # If direct lookup fails, return empty
