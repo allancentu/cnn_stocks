@@ -84,21 +84,30 @@ def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
 # Helper functions for live stock tracking
 def search_stocks(query):
     """Search for stocks using yfinance."""
-    # Try direct ticker lookup first
+    if not query or query.strip() == "":
+        return []
+    
+    # Try direct ticker lookup
     try:
-        ticker = yf.Ticker(query.upper())
-        info = ticker.info
+        ticker_obj = yf.Ticker(query.upper().strip())
+        info = ticker_obj.info
         
-        if info and 'symbol' in info:
+        # Check if we got valid info (yfinance returns empty dict for invalid tickers)
+        if info and len(info) > 1 and ('symbol' in info or 'shortName' in info or 'longName' in info):
+            # Valid ticker found
+            symbol = info.get('symbol', query.upper().strip())
+            name = info.get('longName', info.get('shortName', symbol))
+            
             return [{
-                'symbol': info.get('symbol', query.upper()),
-                'name': info.get('longName', info.get('shortName', 'Unknown')),
+                'symbol': symbol,
+                'name': name,
                 'country': 'US'
             }]
-    except Exception:
+    except Exception as e:
+        # Ticker not found or error
         pass
     
-    # If direct lookup fails, return empty (user can try another ticker)
+    # If direct lookup fails, return empty
     return []
 
 def fetch_stock_data(ticker):
@@ -378,30 +387,12 @@ elif page == "📊 Live Stock Tracker":
             matches = search_stocks(search_query)
             
             if len(matches) == 0:
-                st.warning("Nenhuma ação encontrada com esse critério de busca.")
-            elif len(matches) == 1:
-                # Auto-select single match
+                st.warning(f"❌ Ticker '{search_query.upper()}' não encontrado. Tente usar o símbolo do ticker (ex: AAPL, TSLA, GOOGL, AMZN).")
+            else:
+                # Auto-select the ticker
                 st.session_state.selected_ticker = matches[0]['symbol']
                 st.success(f"✅ Ação selecionada: **{matches[0]['symbol']}** - {matches[0]['name']}")
-            else:
-                # Show dialog with multiple matches
-                @st.dialog("Selecione uma ação")
-                def select_stock():
-                    st.markdown(f"Encontradas **{len(matches)}** ações correspondentes:")
-                    
-                    for i, match in enumerate(matches[:10]):  # Limit to 10 results
-                        col_a, col_b = st.columns([3, 1])
-                        with col_a:
-                            st.markdown(f"**{match['symbol']}** - {match['name']}")
-                        with col_b:
-                            if st.button("Selecionar", key=f"select_{i}"):
-                                st.session_state.selected_ticker = match['symbol']
-                                st.rerun()
-                    
-                    if len(matches) > 10:
-                        st.info(f"Mostrando 10 de {len(matches)} resultados. Refine sua busca para ver mais opções.")
-                
-                select_stock()
+                st.rerun()
     
     # Display selected ticker and chart
     if st.session_state.selected_ticker:
