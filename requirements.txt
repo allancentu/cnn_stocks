@@ -1,7 +1,6 @@
 numpy
 streamlit
 tensorflow
-yfinance>=0.2.52
-curl-cffi>=0.7.4
+yfinance==0.2.48
 mplfinance
 Pillow
