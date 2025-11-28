@@ -1,4 +1,7 @@
 numpy
 streamlit
 tensorflow
+yfinance
+mplfinance
+pytickersymbols
 Pillow
