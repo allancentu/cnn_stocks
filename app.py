@@ -87,19 +87,26 @@ def search_stocks(query):
     if not query or query.strip() == "":
         return []
     
+    query = query.upper().strip()
+    
     # Try direct ticker lookup
     try:
-        ticker_obj = yf.Ticker(query.upper().strip())
-        info = ticker_obj.info
+        ticker_obj = yf.Ticker(query)
         
-        # Check if we got valid info (yfinance returns empty dict for invalid tickers)
-        if info and len(info) > 1 and ('symbol' in info or 'shortName' in info or 'longName' in info):
-            # Valid ticker found
-            symbol = info.get('symbol', query.upper().strip())
-            name = info.get('longName', info.get('shortName', symbol))
+        # Try to get some basic info to validate the ticker exists
+        # Using history is more reliable than info for validation
+        test_data = ticker_obj.history(period='5d', interval='1d')
+        
+        if test_data is not None and not test_data.empty:
+            # Valid ticker - try to get name info
+            try:
+                info = ticker_obj.info
+                name = info.get('longName', info.get('shortName', query))
+            except:
+                name = query
             
             return [{
-                'symbol': symbol,
+                'symbol': query,
                 'name': name,
                 'country': 'US'
             }]
