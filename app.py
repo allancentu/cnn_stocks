@@ -8,10 +8,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 import time
 import io
-
-# Configure yfinance to avoid curl_cffi Chrome impersonation issues
-import os
-os.environ['YF_ENABLE_EXPERIMENTAL_QUOTE_QUERY'] = '0'
+import warnings
+warnings.filterwarnings('ignore')
 
 # Define a arquitetura do modelo (dual-output matching stock_cnn.py)
 def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
@@ -86,75 +84,31 @@ def create_dual_output_model(num_cdl_patterns=20, dropout_rate=0.35):
     )
 
 # Helper functions for live stock tracking
-def search_stocks(query):
-    """Search for stocks using yfinance."""
-    if not query or query.strip() == "":
-        return []
-    
-    query = query.upper().strip()
-    
-    # Try direct ticker lookup with retry logic
-    import warnings
-    warnings.filterwarnings('ignore')
-    
-    try:
-        ticker_obj = yf.Ticker(query)
-        
-        # Use fast_info which is more reliable and doesn't make complex API calls
-        try:
-            fast_info = ticker_obj.fast_info
-            # If we can access fast_info without error, ticker is valid
-            if fast_info and hasattr(fast_info, 'last_price'):
-                # Try to get the name
-                try:
-                    info = ticker_obj.info
-                    name = info.get('longName', info.get('shortName', query))
-                except:
-                    name = query
-                
-                return [{
-                    'symbol': query,
-                    'name': name,
-                    'country': 'US'
-                }]
-        except:
-            # If fast_info fails, ticker likely doesn't exist
-            pass
-            
-    except Exception as e:
-        # Ticker not found or error - silently fail
-        pass
-    
-    # If direct lookup fails, return empty
-    return []
-
 def fetch_stock_data(ticker):
-    """Fetch stock data from yfinance. Returns (data, is_market_open)."""
+    """Fetch last 30 minutes of 1-minute interval stock data. Returns (data, is_market_open)."""
     try:
         stock = yf.Ticker(ticker)
         
-        # Try to get 1-minute data for today first (market open)
-        data = stock.history(period='1d', interval='1m')
-        
-        if not data.empty and len(data) >= 30:
-            # Recent data available - market likely open or just closed
-            return data.tail(30), True
-        
-        # If not enough recent data, try last 5 days with 1-minute interval
+        # Try to get 1-minute data for today (last 30 data points)
         data = stock.history(period='5d', interval='1m')
         
-        if not data.empty and len(data) >= 30:
-            # Got historical data - market is closed
-            return data.tail(30), False
-        
-        # Last resort: try 1 hour interval for last month
-        data = stock.history(period='1mo', interval='1h')
-        if not data.empty and len(data) >= 30:
-            return data.tail(30), False
+        if not data.empty and len(data) >= 5:  # At least 5 data points
+            # Get last 30 rows (or whatever is available)
+            last_30 = data.tail(30)
             
+            # Check if data is recent (market open)
+            if not data.empty:
+                last_time = data.index[-1]
+                now = pd.Timestamp.now(tz=last_time.tz)
+                time_diff = (now - last_time).total_seconds() / 60  # minutes
+                
+                is_recent = time_diff < 30  # Data is less than 30 min old
+                return last_30, is_recent
+        
+        # If no recent data, return None
         return None, False
+            
     except Exception as e:
-        st.error(f"Erro ao buscar dados: {e}")
         return None, False
 
 def plot_candlestick_chart(data, ticker):
@@ -391,26 +345,23 @@ elif page == "📊 Live Stock Tracker":
     
     with col1:
         search_query = st.text_input(
-            "Digite o símbolo ou nome da ação:",
-            placeholder="Ex: AAPL, Tesla, Microsoft"
+            "Digite o símbolo do ticker:",
+            placeholder="Ex: AAPL, TSLA, GOOGL, AMZN",
+            value=st.session_state.get('search_input', '')
         )
     
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)
         search_button = st.button("🔍 Buscar", use_container_width=True)
     
-    # Handle search
+    # Handle search - just accept the ticker directly
     if search_button and search_query:
-        with st.spinner("Buscando ações..."):
-            matches = search_stocks(search_query)
-            
-            if len(matches) == 0:
-                st.warning(f"❌ Ticker '{search_query.upper()}' não encontrado. Tente usar o símbolo do ticker (ex: AAPL, TSLA, GOOGL, AMZN).")
-            else:
-                # Auto-select the ticker
-                st.session_state.selected_ticker = matches[0]['symbol']
-                st.success(f"✅ Ação selecionada: **{matches[0]['symbol']}** - {matches[0]['name']}")
-                st.rerun()
+        ticker = search_query.upper().strip()
+        if ticker:
+            st.session_state.selected_ticker = ticker
+            st.session_state.search_input = search_query
+            st.success(f"✅ Buscando dados para: **{ticker}**")
+            st.rerun()
     
     # Display selected ticker and chart
     if st.session_state.selected_ticker:
